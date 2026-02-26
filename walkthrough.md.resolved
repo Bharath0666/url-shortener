@@ -1,0 +1,82 @@
+# Scalable URL Shortener Service — Walkthrough
+
+## Overview
+
+Built a production-style URL shortener with **Flask, MySQL, Redis, REST APIs**, and a premium dark-themed dashboard.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Client -->|REST API| Flask
+    Flask -->|Cache check| Redis
+    Redis -->|HIT: < 5ms| Flask
+    Flask -->|MISS| MySQL
+    MySQL -->|populate cache| Redis
+    Flask -->|302 redirect| Client
+    Flask -->|Click log| MySQL
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [run.py](file:///d:/Project/run.py) | Entry point |
+| [app/\_\_init\_\_.py](file:///d:/Project/app/__init__.py) | Flask app factory |
+| [app/config.py](file:///d:/Project/app/config.py) | MySQL, Redis, app config from [.env](file:///d:/Project/.env) |
+| [app/models.py](file:///d:/Project/app/models.py) | [Url](file:///d:/Project/app/models.py#9-41) and [ClickLog](file:///d:/Project/app/models.py#43-67) ORM models |
+| [app/encoder.py](file:///d:/Project/app/encoder.py) | Base62 encode/decode (O(1), collision-free) |
+| [app/cache.py](file:///d:/Project/app/cache.py) | Redis caching layer with TTL and latency logging |
+| [app/routes.py](file:///d:/Project/app/routes.py) | 5 REST endpoints + redirect logic |
+| [app/validators.py](file:///d:/Project/app/validators.py) | URL validation (scheme, domain, length) |
+| [app/rate_limiter.py](file:///d:/Project/app/rate_limiter.py) | Flask-Limiter backed by Redis |
+| [migrations/init_db.sql](file:///d:/Project/migrations/init_db.sql) | MySQL DDL schema |
+| [setup_db.py](file:///d:/Project/setup_db.py) | Python DB setup script |
+| [templates/index.html](file:///d:/Project/templates/index.html) | Dashboard SPA template |
+| [static/css/style.css](file:///d:/Project/static/css/style.css) | Premium dark glassmorphism design |
+| [static/js/app.js](file:///d:/Project/static/js/app.js) | Frontend: API calls, Chart.js, toasts |
+
+---
+
+## API Test Results — All 8/8 Passed
+
+```
+============================================================
+  ALL TESTS PASSED
+============================================================
+  1. POST /api/shorten         -> 201  [PASS]
+  1b. POST (invalid)           -> 400  [PASS]
+  2. GET /api/url/<code>       -> 200  [PASS]
+  3. GET /<code> (redirect)    -> 302  [PASS]
+  3b. GET /<code> (cache hit)  -> 302  [PASS]
+  4. GET /api/analytics/<code> -> 200  [PASS]
+  5. DELETE /api/url/<code>    -> 204  [PASS]
+  5b. GET after delete         -> 404  [PASS]
+```
+
+## Redis Cache Verification
+
+Server logs confirm sub-5ms cache reads:
+
+```
+CACHE HIT  1           (0.61 ms)
+REDIRECT (cache hit) 1 → https://www.google.com  [30.93 ms]
+CACHE HIT  1           (0.62 ms)
+REDIRECT (cache hit) 1 → https://www.google.com  [15.84 ms]
+```
+
+> [!TIP]
+> The Redis cache read itself takes **< 1ms**. The full redirect latency (~16-31ms) includes DB click logging. Pure cache reads serve in **0.6ms**.
+
+## How to Run
+
+```bash
+# Start Redis (if not already running)
+"C:\Program Files\Redis\redis-server.exe"
+
+# Start the Flask server
+cd d:\Project
+python run.py
+```
+
+Open **http://localhost:5000** in your browser.

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snip — Scalable URL Shortener</title>
+    <meta name="description" content="High-performance URL shortener with Redis caching, Base62 encoding, and real-time analytics." />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <!-- ============  BACKGROUND DECORATIONS ============ -->
+    <div class="bg-glow bg-glow--1"></div>
+    <div class="bg-glow bg-glow--2"></div>
+    <div class="bg-glow bg-glow--3"></div>
+
+    <!-- ============  HEADER / NAV  ============ -->
+    <header class="header" id="header">
+        <div class="header__brand">
+            <svg class="header__logo" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="url(#gLogo)" stroke-width="3"/><path d="M10 17l4 4 8-10" stroke="url(#gLogo)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="gLogo" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#c084fc"/></linearGradient></defs></svg>
+            <span class="header__name">Snip</span>
+        </div>
+        <nav class="header__nav">
+            <button class="nav-btn nav-btn--active" data-view="shorten" id="nav-shorten">Shorten</button>
+            <button class="nav-btn" data-view="urls" id="nav-urls">My URLs</button>
+            <button class="nav-btn" data-view="analytics" id="nav-analytics">Analytics</button>
+        </nav>
+        <div class="header__stats">
+            <div class="stat-chip" id="stat-total-urls">
+                <span class="stat-chip__label">URLs</span>
+                <span class="stat-chip__value" id="total-urls-count">0</span>
+            </div>
+            <div class="stat-chip" id="stat-total-clicks">
+                <span class="stat-chip__label">Clicks</span>
+                <span class="stat-chip__value" id="total-clicks-count">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============  MAIN CONTENT  ============ -->
+    <main class="main">
+
+        <!-- -------  VIEW: Shorten  ------- -->
+        <section class="view view--active" id="view-shorten">
+            <div class="hero">
+                <h1 class="hero__title">
+                    Make every link <span class="gradient-text">count</span>
+                </h1>
+                <p class="hero__subtitle">
+                    Lightning-fast redirects powered by Redis caching &amp; Base62 encoding.
+                </p>
+            </div>
+
+            <div class="shorten-card glass-card">
+                <form id="shorten-form" autocomplete="off">
+                    <div class="input-group">
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            <input type="url" id="url-input" placeholder="Paste your long URL here..." required />
+                        </div>
+                        <button type="submit" class="btn btn--primary" id="shorten-btn">
+                            <span class="btn__text">Shorten</span>
+                            <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                    <div class="input-error" id="input-error"></div>
+                </form>
+
+                <!-- Result card (hidden by default) -->
+                <div class="result-card" id="result-card" style="display:none">
+                    <div class="result-card__header">
+                        <span class="result-badge">Created!</span>
+                    </div>
+                    <div class="result-card__body">
+                        <div class="result-url-group">
+                            <label class="result-label">Short URL</label>
+                            <div class="result-copy-row">
+                                <input type="text" class="result-url" id="result-short-url" readonly />
+                                <button class="btn btn--icon" id="copy-btn" title="Copy to clipboard">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="result-url-group">
+                            <label class="result-label">Original URL</label>
+                            <p class="result-original" id="result-original-url"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature chips -->
+            <div class="features">
+                <div class="feature-chip glass-card-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>&lt; 5ms cache reads</span>
+                </div>
+                <div class="feature-chip glass-card-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>Collision-free codes</span>
+                </div>
+                <div class="feature-chip glass-card-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                    <span>56B+ unique codes</span>
+                </div>
+                <div class="feature-chip glass-card-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    <span>Rate-limited API</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- -------  VIEW: My URLs  ------- -->
+        <section class="view" id="view-urls">
+            <h2 class="section-title">My Shortened URLs</h2>
+            <div class="url-list" id="url-list">
+                <p class="empty-state" id="urls-empty">No URLs shortened yet. Go create one!</p>
+            </div>
+        </section>
+
+        <!-- -------  VIEW: Analytics  ------- -->
+        <section class="view" id="view-analytics">
+            <h2 class="section-title">Analytics Dashboard</h2>
+
+            <div class="analytics-picker glass-card-sm">
+                <label for="analytics-code-input">Short Code</label>
+                <div class="analytics-picker__row">
+                    <input type="text" id="analytics-code-input" placeholder="e.g. 1a" />
+                    <button class="btn btn--primary btn--sm" id="analytics-fetch-btn">Fetch</button>
+                </div>
+            </div>
+
+            <div id="analytics-content" style="display:none">
+                <div class="analytics-grid">
+                    <div class="analytics-stat glass-card">
+                        <span class="analytics-stat__label">Total Clicks</span>
+                        <span class="analytics-stat__value" id="a-total-clicks">0</span>
+                    </div>
+                    <div class="analytics-stat glass-card">
+                        <span class="analytics-stat__label">Created</span>
+                        <span class="analytics-stat__value analytics-stat__value--sm" id="a-created-at">—</span>
+                    </div>
+                    <div class="analytics-stat glass-card">
+                        <span class="analytics-stat__label">Original URL</span>
+                        <span class="analytics-stat__value analytics-stat__value--sm analytics-stat__value--link" id="a-original-url">—</span>
+                    </div>
+                </div>
+
+                <div class="chart-card glass-card">
+                    <h3 class="chart-card__title">Clicks Over Time</h3>
+                    <canvas id="clicks-chart"></canvas>
+                </div>
+
+                <div class="recent-clicks glass-card">
+                    <h3 class="chart-card__title">Recent Clicks</h3>
+                    <div class="table-wrap">
+                        <table class="click-table" id="click-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>IP Address</th>
+                                    <th>User Agent</th>
+                                    <th>Referer</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="click-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-empty" id="analytics-empty">
+                <p>Enter a short code above to view analytics.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============  TOAST CONTAINER  ============ -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
