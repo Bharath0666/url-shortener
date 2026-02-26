@@ -2,6 +2,7 @@
 URL Shortener — Flask Application Factory
 """
 
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -9,6 +10,7 @@ from flask_cors import CORS
 from app.config import Config
 
 db = SQLAlchemy()
+logger = logging.getLogger(__name__)
 
 
 def create_app(config_class=Config):
@@ -36,6 +38,14 @@ def create_app(config_class=Config):
     # ---- Create tables if they don't exist ----
     with app.app_context():
         from app import models  # noqa: F401
-        db.create_all()
+        try:
+            db.create_all()
+            logger.info("Database tables created / verified.")
+        except Exception as exc:
+            logger.warning("db.create_all() failed (will retry on first request): %s", exc)
 
     return app
+
+
+# Module-level app instance so `gunicorn app:app` works
+app = create_app()

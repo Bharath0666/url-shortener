@@ -4,7 +4,7 @@ URL Shortener — Application entry point.
 """
 
 import logging
-from app import create_app
+from app import app
 
 # Configure logging
 logging.basicConfig(
@@ -13,7 +13,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-app = create_app()
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+
